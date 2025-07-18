@@ -54,3 +54,6 @@ def salvar_analise(analise: AnaliseInput):
     except Exception as e:
         return {"status": "erro", "detalhe": str(e)}
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
