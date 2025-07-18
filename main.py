@@ -1,8 +1,13 @@
-
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI
+from dotenv import load_dotenv
+import os
 import psycopg2
 import json
+from pydantic import BaseModel
+from utils.db_utils import get_connection
+
+
+load_dotenv()  # Carrega variáveis do .env
 
 app = FastAPI()
 
@@ -13,18 +18,19 @@ class AnaliseInput(BaseModel):
     regime_tributario: str
     resultado: dict
 
+# Pega as variáveis do .env
 db_config = {
-    "dbname": "flowmindz_db",
-    "user": "flowmindz_db_user",
-    "password": "4S52rb1raqopNIwV3RSwfGGNUYY0tglS",
-    "host": "dpg-d1r951umcj7s73allss0-a",
-    "port": 5432
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "port": os.getenv("DB_PORT"),
 }
 
 @app.post("/salvar_analise")
 def salvar_analise(analise: AnaliseInput):
     try:
-        conn = psycopg2.connect(**db_config)
+        conn = get_connection()
         cur = conn.cursor()
 
         cur.execute("""
@@ -44,7 +50,7 @@ def salvar_analise(analise: AnaliseInput):
         cur.close()
         conn.close()
 
-        return { "status": "sucesso", "id": new_id }
-
+        return {"status": "sucesso", "id": new_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao salvar: {str(e)}")
+        return {"status": "erro", "detalhe": str(e)}
+
