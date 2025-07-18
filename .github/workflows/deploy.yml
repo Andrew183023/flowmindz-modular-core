@@ -1,0 +1,24 @@
+name: Deploy FlowMindz na Railway
+
+on:
+  push:
+    branches:
+      - main  # Aciona o deploy sempre que houver push na branch main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v3
+
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Autenticar na Railway
+        run: railway login --apiKey ${{ secrets.RAILWAY_API_KEY }}
+
+      - name: Deploy para Railway
+        run: railway up --project ${{ secrets.RAILWAY_PROJECT_ID }}
+
+
