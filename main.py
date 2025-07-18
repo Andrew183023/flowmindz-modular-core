@@ -1,33 +1,50 @@
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import openai
-import os
+import psycopg2
+import json
 
 app = FastAPI()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+class AnaliseInput(BaseModel):
+    cnpj: str
+    razao_social: str
+    tipo_empresa: str
+    regime_tributario: str
+    resultado: dict
 
-class Projeto(BaseModel):
-    nome: str
-    pitch: str
+db_config = {
+    "dbname": "flowmindz_db",
+    "user": "flowmindz_db_user",
+    "password": "4S52rb1raqopNIwV3RSwfGGNUYY0tglS",
+    "host": "dpg-d1r951umcj7s73allss0-a",
+    "port": 5432
+}
 
-@app.post("/avaliar")
-async def avaliar_projeto(dados: Projeto):
-    prompt = f'''
-    Avalie o seguinte projeto enviado por {dados.nome}:
+@app.post("/salvar_analise")
+def salvar_analise(analise: AnaliseInput):
+    try:
+        conn = psycopg2.connect(**db_config)
+        cur = conn.cursor()
 
-    {dados.pitch}
+        cur.execute("""
+            INSERT INTO analises_tributarias (cnpj, razao_social, tipo_empresa, regime_tributario, resultado)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id;
+        """, (
+            analise.cnpj,
+            analise.razao_social,
+            analise.tipo_empresa,
+            analise.regime_tributario,
+            json.dumps(analise.resultado)
+        ))
 
-    Retorne uma análise com:
-    - Pontuação geral (0 a 100)
-    - Potencial de mercado (Baixo, Médio, Alto)
-    - Resumo técnico
-    - Sugestões de melhoria
-    '''
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return {"analise": response.choices[0].message['content']}
+        return { "status": "sucesso", "id": new_id }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar: {str(e)}")
